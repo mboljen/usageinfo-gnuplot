@@ -1,16 +1,15 @@
 #!/usr/bin/env perl
 #
-# Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Mo 2023-10-30 00:40:44 CET (boljen)
+# Created:         Do 2023-10-26 14:06:36 CEST (boljen)
+# Last modified:   Mi 2024-01-03 10:06:48 CET (boljen)
 #
 # usageinfo-gnuplot:
-#    x
+#    Convert usageinfo data to gnuplot data.
 
 use strict;
 use warnings;
 
 # Include modules
-use Data::Dumper;
 use Time::Piece;
 use Time::Seconds;
 use File::Spec::Functions;
@@ -23,13 +22,14 @@ use Regexp::Common;
 use Time::Local;
 use Spreadsheet::Read::Simple;
 
+
 # Initialize default values
 my $sheetno = 1;
 my $dtfmt = '%Y-%m-%dT%H:%M:%S%z';
 my $rate;
 my $color;
 my $scale = 1;
-my $yformat = '%.3f';
+my $yformat;
 my $yrange;
 my $ylabel;
 my $max = 0;
@@ -61,6 +61,9 @@ GetOptions(
     'man'         => \$man,
 );
 
+# Set default value for columns unless defined
+@column=(1,2) unless @column;
+
 # Check max value
 die "Invalid max value: $max" unless $max >= 0;
 
@@ -68,7 +71,7 @@ die "Invalid max value: $max" unless $max >= 0;
 die "Invalid yrange value, expects <num>:<num>, received \"$yrange\""
     if defined $yrange and $yrange !~ m/^(?:$RE{num}{real})?:(?:$RE{num}{real})?$/;
 
-#
+# Show plain old documentation
 pod2usage(1) if $help;
 pod2usage(-exitval => 0, -verbose => 2) if $man;
 
@@ -83,32 +86,32 @@ die "Not a valid file: $file" unless -f $file;
 my $book = ReadDataSimple($file, sep => $sep);
 my $sheet = $book->sheet($sheetno);
 
-#
+# Check number of columns
 die "Abscissa column tag exceeds available columns" if $column[0] > $sheet->maxcol;
 die "Ordinate column tag exceeds available columns" if $column[1] > $sheet->maxcol;
 
-#
+# Fetch timestamps and function values
 my @dt = $sheet->column($column[0]);
-my @y = $sheet->column($column[1]);
+my @y  = $sheet->column($column[1]);
 
-#
+# Exit if array sizes do not match
 die "Array size mismatch of abscissa and ordinate values" if $#dt != $#y;
 
 # Internal variables
-my ($data,$dataset) = ({},{});
+my $data = {};
+my $dataset = {};
 my $timefmt = '';
 my $xformat = '';
-my $xrange;
 my $xdata = 0;
 my $xlabel;
 my $dtmin;
 my $dtmax;
 my $tagfmt;
 
-#
+# Loop over timestamps
 for (my $i = 0; $i <= $#dt; $i++)
 {
-
+    # Initialize timestamp
     my $dt;
 
     # Parse datetime string
@@ -130,8 +133,14 @@ for (my $i = 0; $i <= $#dt; $i++)
     # Invalid data, remove from array
     if (not defined $dt)
     {
+        # Remove line from arrays
         splice @dt,$i,1;
         splice @y,$i,1;
+
+        # Break out loop if no items left
+        last unless @dt;
+
+        # Redo this step
         redo;
     }
 
@@ -150,16 +159,15 @@ for (my $i = 0; $i <= $#dt; $i++)
 
     # Add datapoint to data hash
     $data->{$unixtime} = { value => $y[$i] };
-
 }
 
-#
+# Create spline
 my $spline = Math::Spline->new(\@dt,\@y);
 
 # If first order differentation is requested
 if (defined $rate)
 {
-    #
+    # Exit if options rate and reset are enabled
     die "Options rate and reset are mutually exclusive\n" if $reset;
 
     # Check option value
@@ -176,7 +184,7 @@ if (defined $rate)
     elsif ($rate =~ m/^(?:sec)(?:ond)?s?$/i)  { $rate = 1;           }
     else
     {
-        die "Invalid rate specifier: $rate";
+        die "Invalid rate specifier, received \"$rate\"";
     }
 
     # Obtain first derivative (rate with respect to seconds)
@@ -197,45 +205,59 @@ if (defined $rate)
 # Quit if no data has been found at all
 die "No usageinfo found" unless scalar keys %{$data};
 
-#
+# Check if data needs to be split in periods
 if (defined $period)
 {
 
-    #
+    # Check period identifier
     if ($period =~ m/^y(?:ear)?s?$/i)
     {
+        # Yearly
         $tagfmt  = '%Y';
-        $timefmt = '%j'; # day of the year, i.e. 1-365
-        $xformat = '%b'; # abbreviated name of the month
+        $timefmt = '%j';                # Day of the Year, i.e. 1-365
+        $xformat = '%b';                # Abbreviated Name of the Month
         $xlabel  = "Month";
         $xdata   = 1;
     }
     elsif ($period =~ m/^m(?:onth)?s?$/i)
     {
-        $tagfmt  = '%Y-%m';
-        $timefmt = '%d'; # day of the month, i.e. 1-31
-        $xformat = '%d'; # day of the month, 1-31
+        # Monthly
+        $tagfmt  = '%b %y';
+        $timefmt = '%d';                # Day of the Month, i.e. 1-31
+        $xformat = '%d';                # Day of the Month, 1-31
         $xlabel  = "Day of the Month";
         $xdata   = 1;
     }
     elsif ($period =~ m/^w(?:eek)?s?$/i)
     {
+        # Weekly
         $tagfmt  = '%Y/%W';
-        $timefmt = '%w';   # day of the week, i.e. 0-6 (Sunday = 0)
-        $xformat = '%.0f'; # abbreviated name of the weekday
+        $timefmt = '%w';                # Day of the Week, i.e. 0-6 (Sunday = 0)
+        $xformat = '%.0f';              # Abbreviated Name of the Weekday
         $xlabel  = "Day of the Week";
         $xdata   = 0;
     }
     elsif ($period =~ m/^d(?:ay)?s?$/i)
     {
+        # Daily
         $tagfmt  = '%Y-%m-%d';
-        $timefmt = '%H:%M'; # hour of the day
-        $xformat = '%H:%M'; # hour of the day, 0-23
-        $xlabel  = "Clocktime";
+        $timefmt = '%H:%M';             # Clocktime
+        $xformat = '%k';                # Hour of the Day, 0-23
+        $xlabel  = "Hour of the Day";
+        $xdata   = 1;
+    }
+    elsif ($period =~ m/^h(?:our)?s?$/i)
+    {
+        # Hourly
+        $tagfmt  = '%Y-%m-%d %H';
+        $timefmt = '%H:%M';             # Clocktime
+        $xformat = '%M';                # Minute of the Hour, 00-59
+        $xlabel  = 'Minute of the Hour';
         $xdata   = 1;
     }
     else
     {
+        # Invalid period specifier
         die "Invalid period value, received \"$period\""
     }
 
@@ -258,7 +280,7 @@ if (defined $period)
         # Convert from gmtime to localtime
         $dt = localtime($dt->epoch);
 
-        #
+        # Set start and end points
         my ($dt0,$dt1);
         if ($period =~ m/^y/i)
         {
@@ -287,14 +309,14 @@ if (defined $period)
             $dt1 = $dt0 + ONE_DAY - ONE_MINUTE;
         }
 
-        #
+        # Create function value by spline interpolation at start point (but do not extrapolate)
         if ($dt > $dt0)
         {
             $dt0 = $dt0->epoch;
             $dataset->{$key}{$dt0} = { value => $spline->evaluate($dt0) } if $dt0 > $dtmin;
         }
 
-        #
+        # Create function value by spline interpolation at end point (but do not extrapolate)
         if ($dt < $dt1)
         {
             $dt1 = $dt1->epoch;
@@ -302,16 +324,16 @@ if (defined $period)
         }
     }
 
-    # Reset datasets
+    # Apply offset to function values of datasets if reset option is enabled
     if ($reset)
     {
-        #
+        # Loop over datasets
         foreach my $key (keys %{$dataset})
         {
-            #
+            # Initialize variable for offset
             my $offset;
 
-            #
+            # Loop over values
             foreach my $unixtime (sort { $a <=> $b } keys %{$dataset->{$key}})
             {
                 $offset = $dataset->{$key}{$unixtime}{value} unless defined $offset;
@@ -322,43 +344,52 @@ if (defined $period)
 }
 else
 {
-    #
+    # Get time range between last and first timestamp
     my $diff = $dtmax - $dtmin;
 
-    #
+    # Check time range
     if ($diff > ONE_YEAR)
     {
-        #
+        # More than one year
         $xformat = '%b %Y';
-        $xlabel  = 'Date';
+        $xlabel  = '';
         $timefmt = '%s';
         $xdata   = 1;
     }
     elsif ($diff > ONE_MONTH)
     {
-        #
+        # More than one month
         $xformat = '%b';
-        $xlabel  = 'Date';
+        $xlabel  = '';
         $timefmt = '%s';
         $xdata   = 1;
     }
     elsif ($diff > ONE_DAY)
     {
-        #
-        $xformat = '';      # UNDONE!
-        $xlabel  = '';      # UNDONE!
-        $timefmt = '%s';    # UNDONE!
-        $xdata   = 0;       # UNDONE!
+        # More than one day
+        $xformat = '%b %d';
+        $xlabel  = '';
+        $timefmt = '%s';
+        $xdata   = 1;
+    }
+    elsif ($diff > ONE_HOUR)
+    {
+        # More than one hour
+        $xformat = '%k';
+        $xlabel  = 'Hour of the Day';
+        $timefmt = '%s';
+        $xdata   = 1;
     }
     else
     {
-        #
-        $xformat = '';      # UNDONE!
-        $xlabel  = '';      # UNDONE!
-        $timefmt = '%s';    # UNDONE!
-        $xdata   = 0;       # UNDONE!
+        # Everything else (less than one hour)
+        $xformat = '%M';
+        $xlabel  = 'Minute of the Hour';
+        $timefmt = '%s';
+        $xdata   = 1;
     }
 
+    # Create datasets from data
     foreach my $unixtime (keys %{$data})
     {
         my $tag = 'all';
@@ -370,37 +401,41 @@ else
 # Set default title
 $title = sprintf("%s",$file) unless defined $title;
 
-#
+# Print Gnuplot header
 print <<GNUPLOT_HEAD;
 set terminal qt enhanced persist size 1024,576 font ",12"
 set title "$title"
 set xlabel "$xlabel"
 set format x "$xformat"
-set format y "$yformat"
 set grid
 unset colorbox
 GNUPLOT_HEAD
 
-if (defined $xrange)
-{
-    printf "set xrange [%s]\n", $xrange;
-}
-
+# Print week days
 if (defined $period and $period =~ m/^w/i)
 {
     print "set xtics ( \"Sun\" 0, \"Mon\" 1, \"Tue\" 2, \"Wed\" 3, \"Thu\" 4, \"Fri\" 5, \"Sat\" 6)\n";
 }
 
+# Apply format specifier to ordinate axis if defined
+if (defined $yformat)
+{
+    printf "set format y \"%s\"\n", $yformat;
+}
+
+# Apply range specifier to ordinate axis if defined
 if (defined $yrange)
 {
     printf "set yrange [%s]\n", $yrange;
 }
 
+# Apply label to ordinate axis if defined
 if (defined $ylabel)
 {
     printf "set ylabel \"%s\"\n", $ylabel;
 }
 
+# Enable key if periods are enabled
 if (defined $period)
 {
     #
@@ -411,14 +446,14 @@ else
     printf "unset key\n";
 }
 
+# Enable RGB mode if specific color is defined
 if (defined $color)
 {
     printf "set palette mode RGB\n";
-    #printf "set palette maxcolors 10\n";
-    printf "set palette defined (0 \"white\", 1 \"%s\")\n", $color;
+    printf "set palette defined (0 \"%s\", 1 \"gray90\")\n", $color;
 }
 
-#
+# Enable time mode for abscissa axis
 if ($xdata)
 {
     print "set xdata time\n";
@@ -428,20 +463,20 @@ if ($xdata)
 # Sort datasets according to key
 my @set = sort { $a cmp $b } keys %{$dataset};
 
-#
-$max = ($max==0) ? $#set : $max-1 ;
+# Determine number of curves
+$max = ($max==0) ? $#set : $max-1;
 
 splice @set, 0, $#set-$max if $#set > $max;
 push @set, undef while $#set < $max;
 
-# Start plot command
+# Initiate plot command
 print "plot ";
 
 # Add lines
 for my $i (0 .. $max)
 {
     next unless defined $set[$i];
-    printf "'-' u 1:2 t '%s' w linespoints lc palette frac %.3f lw 2", $set[$i], ($max == 0) ? 1 : $i/$max;
+    printf "'-' u 1:2 t '%s' w linespoints lc palette frac %.3f lw 2", $set[$i], ($max == 0) ? 0 : 1-$i/$max;
     printf ", \\\n     " if $i < $max;
 }
 
@@ -456,7 +491,8 @@ for my $i (0 .. $max)
     for my $unixtime (sort { $a cmp $b } keys %{$hashref})
     {
         my $dt = strftime($timefmt,localtime($unixtime));
-        printf "%s " . $yformat . "\n", $dt, $hashref->{$unixtime}{value};
+        my $yfmt = (defined $yformat) ? $yformat : '%s';
+        printf "%s " . $yfmt . "\n", $dt, $hashref->{$unixtime}{value};
     }
     print "e\n";
 }
@@ -479,69 +515,108 @@ B<usageinfo> [I<options>] | B<gnuplot>
 
 =over 4
 
-=item B<-a>, B<--abs>=I<col>
+=item B<--man>
 
-Set column number for abscissa values (default: 1).
+Prints the manual page and exits.
 
-=item B<-o>, B<--ord>=I<col>
+=item B<--help>
 
-Set column number for ordinate values (default: 2).
+Prints a brief help message and exits.
 
-=item B<--yformat>=I<value>
 
-xxx
+=back
+
+
+=head2 READING DATA
+
+Customize how data is read in.
+
+=over 4
+
+=item B<--sep>=I<value>
+
+Sets separation character for plain text files.
 
 =item B<--sheet>=I<value>
 
-Set sheet number.
+Sets sheet number for spreadsheet files (default: 1).
+
+=item B<--column>=I<col>,I<col>
+
+Sets numbers of abcissa column (default: 1) and ordinate column (default: 2).
 
 =item B<--dtfmt>=I<datespec>
 
 Set date specifier according to B<strftime>.
 
-=item B<-r>, B<--rate>=I<ratespec>
+=back
 
-Set rate specifier or rate in seconds.
 
-=item B<-c>, B<--color>=I<colorspec>
+=head2 WRITING DATA
 
-Use specific Gnuplot color.
+Customize how data is output.
 
-=item B<-s>, B<--scale>=I<num>
-
-Scale ordinate values by factor I<num> (default: 1).
-
-=item B<-m>, B<--max>=I<num>
-
-Limit output to latest I<num> datasets only.  Set to C<0> to include all datasets (default: 0).
-
-=item B<-s>, B<--split>=I<string>
-
-Split data with respect to periods.  Available options are: C<year>, C<month>, C<week>, C<day> (default: year).
+=over 4
 
 =item B<-t>, B<--title>=I<string>
 
-Specify plot title.
+Uses specific Gnuplot title.
 
-=item B<--man>
+=item B<--ylabel>=I<value>
 
-Print the manual page and exits.
+Uses specific Gnuplot label for ordinate axis (default: undef).
 
-=item B<--help>
+=item B<--yformat>=I<value>
 
-Print a brief help message and exits.
+Uses specific Gnuplot format for ordinate tics (default: undef).
+
+=item B<--yrange>=I<value>
+
+Uses specific Gnuplot range for ordinate axis (default: undef).
+
+=item B<-c>, B<--color>=I<colorspec>
+
+Uses specific Gnuplot color.
+
+=item B<-r>, B<--rate>=I<ratespec>
+
+Show first derivative of ordinate values with respect to I<ratespec>.  Available options are: C<year>, C<month>, C<week>, C<day>, C<hour>, C<min>, C<sec>.  Alternatively, a custom period can be specified in seconds.
+
+=item B<-s>, B<--scale>=I<num>
+
+Scales ordinate values by factor I<num> (default: 1).
+
+=back
+
+=head3 Splitting
+
+Customize data splitting.
+
+=over 4
+
+=item B<-p>, B<--period>=I<string>
+
+Splits data with respect to periods.  Available options are: C<year>, C<month>, C<week>, C<day>, C<hour> (default: year).
+
+=item B<-m>, B<--max>=I<num>
+
+Limits output to latest I<num> datasets only.  Set to C<0> to include all datasets (default: 0).
+
+=item B<--reset>
+
+Resets data to zero at the start of each period.
 
 =back
 
 
 =head1 DESCRIPTION
 
-x
+Processes time-dependent data and maps function values to fixed periods of time.
 
 
 =head1 HISTORY
 
- 2023-10-27  Original version
+ 2024-01-03  Original version
 
 
 =head1 AUTHOR
@@ -553,7 +628,7 @@ x
 
 MIT License
 
-Copyright (c) 2023 Matthias Boljen
+Copyright (c) 2024 Matthias Boljen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
