@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Do 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Mi 2024-01-03 10:06:48 CET (boljen)
+# Last modified:   Thu 2024-01-04 13:21:00 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -216,7 +216,7 @@ if (defined $period)
         $tagfmt  = '%Y';
         $timefmt = '%j';                # Day of the Year, i.e. 1-365
         $xformat = '%b';                # Abbreviated Name of the Month
-        $xlabel  = "Month";
+        $xlabel  = '';
         $xdata   = 1;
     }
     elsif ($period =~ m/^m(?:onth)?s?$/i)
@@ -225,7 +225,7 @@ if (defined $period)
         $tagfmt  = '%b %y';
         $timefmt = '%d';                # Day of the Month, i.e. 1-31
         $xformat = '%d';                # Day of the Month, 1-31
-        $xlabel  = "Day of the Month";
+        $xlabel  = 'Day of the Month';
         $xdata   = 1;
     }
     elsif ($period =~ m/^w(?:eek)?s?$/i)
@@ -234,7 +234,7 @@ if (defined $period)
         $tagfmt  = '%Y/%W';
         $timefmt = '%w';                # Day of the Week, i.e. 0-6 (Sunday = 0)
         $xformat = '%.0f';              # Abbreviated Name of the Weekday
-        $xlabel  = "Day of the Week";
+        $xlabel  = 'Day of the Week';
         $xdata   = 0;
     }
     elsif ($period =~ m/^d(?:ay)?s?$/i)
@@ -243,7 +243,7 @@ if (defined $period)
         $tagfmt  = '%Y-%m-%d';
         $timefmt = '%H:%M';             # Clocktime
         $xformat = '%k';                # Hour of the Day, 0-23
-        $xlabel  = "Hour of the Day";
+        $xlabel  = 'Hour of the Day';
         $xdata   = 1;
     }
     elsif ($period =~ m/^h(?:our)?s?$/i)
