@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Do 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Thu 2024-01-04 13:21:00 CET (boljen)
+# Last modified:   So 2024-01-21 22:02:21 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -24,7 +24,7 @@ use Spreadsheet::Read::Simple;
 
 
 # Initialize default values
-my $sheetno = 1;
+my $sheetlabel = 1;
 my $dtfmt = '%Y-%m-%dT%H:%M:%S%z';
 my $rate;
 my $color;
@@ -44,7 +44,7 @@ my $reset = 0;
 # Parse command line options
 GetOptions(
     'column=i{2}' => \@column,
-    'sheet=i'     => \$sheetno,
+    'sheet=s'     => \$sheetlabel,
     'sep=s{1}'    => \$sep,
     'dtfmt=s'     => \$dtfmt,
     'r|rate=s'    => \$rate,
@@ -84,7 +84,7 @@ die "Not a valid file: $file" unless -f $file;
 
 # Read spreadsheet and fetch sheet
 my $book = ReadDataSimple($file, sep => $sep);
-my $sheet = $book->sheet($sheetno);
+my $sheet = $book->sheet($sheetlabel);
 
 # Check number of columns
 die "Abscissa column tag exceeds available columns" if $column[0] > $sheet->maxcol;
@@ -539,7 +539,7 @@ Sets separation character for plain text files.
 
 =item B<--sheet>=I<value>
 
-Sets sheet number for spreadsheet files (default: 1).
+Sets sheet label for spreadsheet files (default: 1).
 
 =item B<--column>=I<col>,I<col>
 
