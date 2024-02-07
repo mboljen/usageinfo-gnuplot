@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Do 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   So 2024-01-21 22:02:21 CET (boljen)
+# Last modified:   Mi 2024-02-07 22:06:58 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -29,6 +29,7 @@ my $dtfmt = '%Y-%m-%dT%H:%M:%S%z';
 my $rate;
 my $color;
 my $scale = 1;
+my $xformat;
 my $yformat;
 my $yrange;
 my $ylabel;
@@ -51,6 +52,7 @@ GetOptions(
     'reset!'      => \$reset,
     'c|color=s'   => \$color,
     's|scale=f'   => \$scale,
+    'xformat=s'   => \$xformat,
     'yformat=s'   => \$yformat,
     'ylabel=s'    => \$ylabel,
     'yrange=s'    => \$yrange,
@@ -101,7 +103,6 @@ die "Array size mismatch of abscissa and ordinate values" if $#dt != $#y;
 my $data = {};
 my $dataset = {};
 my $timefmt = '';
-my $xformat = '';
 my $xdata = 0;
 my $xlabel;
 my $dtmin;
@@ -214,8 +215,20 @@ if (defined $period)
     {
         # Yearly
         $tagfmt  = '%Y';
-        $timefmt = '%j';                # Day of the Year, i.e. 1-365
-        $xformat = '%b';                # Abbreviated Name of the Month
+        $timefmt = '%j';                            # Day of the Year, i.e. 1-365
+        unless (defined $xformat)
+        {
+            if ($dtmax-$dtmin > ONE_YEAR / 2)
+            {
+                # Abbreviated Name of the Month
+                $xformat = '%b';
+            }
+            else
+            {
+                # Abbreviated Name of the Month and Day of the Month
+                $xformat = '%b %d';
+            }
+        }
         $xlabel  = '';
         $xdata   = 1;
     }
@@ -223,8 +236,8 @@ if (defined $period)
     {
         # Monthly
         $tagfmt  = '%b %y';
-        $timefmt = '%d';                # Day of the Month, i.e. 1-31
-        $xformat = '%d';                # Day of the Month, 1-31
+        $timefmt = '%d';                            # Day of the Month, i.e. 1-31
+        $xformat = '%d' unless defined $xformat;    # Day of the Month, 1-31
         $xlabel  = 'Day of the Month';
         $xdata   = 1;
     }
@@ -232,8 +245,8 @@ if (defined $period)
     {
         # Weekly
         $tagfmt  = '%Y/%W';
-        $timefmt = '%w';                # Day of the Week, i.e. 0-6 (Sunday = 0)
-        $xformat = '%.0f';              # Abbreviated Name of the Weekday
+        $timefmt = '%w';                            # Day of the Week, i.e. 0-6 (Sunday = 0)
+        $xformat = '%.0f' unless defined $xformat;  # Abbreviated Name of the Weekday
         $xlabel  = 'Day of the Week';
         $xdata   = 0;
     }
@@ -241,8 +254,8 @@ if (defined $period)
     {
         # Daily
         $tagfmt  = '%Y-%m-%d';
-        $timefmt = '%H:%M';             # Clocktime
-        $xformat = '%k';                # Hour of the Day, 0-23
+        $timefmt = '%H:%M';                         # Clocktime
+        $xformat = '%k' unless defined $xformat;    # Hour of the Day, 0-23
         $xlabel  = 'Hour of the Day';
         $xdata   = 1;
     }
@@ -250,8 +263,8 @@ if (defined $period)
     {
         # Hourly
         $tagfmt  = '%Y-%m-%d %H';
-        $timefmt = '%H:%M';             # Clocktime
-        $xformat = '%M';                # Minute of the Hour, 00-59
+        $timefmt = '%H:%M';                         # Clocktime
+        $xformat = '%M' unless defined $xformat;    # Minute of the Hour, 00-59
         $xlabel  = 'Minute of the Hour';
         $xdata   = 1;
     }
@@ -351,7 +364,7 @@ else
     if ($diff > ONE_YEAR)
     {
         # More than one year
-        $xformat = '%b %Y';
+        $xformat = '%b %Y' unless defined $xformat;
         $xlabel  = '';
         $timefmt = '%s';
         $xdata   = 1;
@@ -359,7 +372,7 @@ else
     elsif ($diff > ONE_MONTH)
     {
         # More than one month
-        $xformat = '%b';
+        $xformat = '%b' unless defined $xformat;
         $xlabel  = '';
         $timefmt = '%s';
         $xdata   = 1;
@@ -367,7 +380,7 @@ else
     elsif ($diff > ONE_DAY)
     {
         # More than one day
-        $xformat = '%b %d';
+        $xformat = '%b %d' unless defined $xformat;
         $xlabel  = '';
         $timefmt = '%s';
         $xdata   = 1;
@@ -375,7 +388,7 @@ else
     elsif ($diff > ONE_HOUR)
     {
         # More than one hour
-        $xformat = '%k';
+        $xformat = '%k' unless defined $xformat;
         $xlabel  = 'Hour of the Day';
         $timefmt = '%s';
         $xdata   = 1;
@@ -383,7 +396,7 @@ else
     else
     {
         # Everything else (less than one hour)
-        $xformat = '%M';
+        $xformat = '%M' unless defined $xformat;
         $xlabel  = 'Minute of the Hour';
         $timefmt = '%s';
         $xdata   = 1;
@@ -565,6 +578,10 @@ Uses specific Gnuplot title.
 =item B<--ylabel>=I<value>
 
 Uses specific Gnuplot label for ordinate axis (default: undef).
+
+=item B<--xformat>=I<value>
+
+Uses specific Gnuplot format for abscissa tics (default: undef).
 
 =item B<--yformat>=I<value>
 

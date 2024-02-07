@@ -78,6 +78,10 @@ Customize how data is output.
   
   Uses specific Gnuplot label for ordinate axis (default: `undef`).
 
+- **--xformat**=_value_
+  
+  Uses specific Gnuplot label for ordinate tics (default: `undef`).
+
 - **--yformat**=_value_
   
   Uses specific Gnuplot label for ordinate tics (default: `undef`).
