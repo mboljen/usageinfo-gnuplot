@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
-# Created:         Do 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Mi 2024-02-07 22:06:58 CET (boljen)
+# Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
+# Last modified:   Wed 2024-02-14 18:05:50 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -10,18 +10,19 @@ use strict;
 use warnings;
 
 # Include modules
-use Time::Piece;
-use Time::Seconds;
+use Capture::Tiny qw(:all);
 use File::Spec::Functions;
+use File::Temp;
 use Getopt::Long;
-use Math::Spline;
 use Math::Derivative qw(:all);
+use Math::Spline;
 use Pod::Usage;
 use POSIX qw(strftime);
 use Regexp::Common;
-use Time::Local;
 use Spreadsheet::Read::Simple;
-
+use Time::Local;
+use Time::Piece;
+use Time::Seconds;
 
 # Initialize default values
 my $sheetlabel = 1;
@@ -36,15 +37,17 @@ my $ylabel;
 my $max = 0;
 my $period;
 my $title;
-my $man = 0;
-my $help = 0;
-my @column;
+my @column = (1,2);
 my $sep;
+my $gnuplot;
+my $outfile;
 my $reset = 0;
+my $man   = 0;
+my $help  = 0;
 
 # Parse command line options
 GetOptions(
-    'column=i{2}' => \@column,
+    'column=s'    => \&column,
     'sheet=s'     => \$sheetlabel,
     'sep=s{1}'    => \$sep,
     'dtfmt=s'     => \$dtfmt,
@@ -59,12 +62,59 @@ GetOptions(
     'm|max=i'     => \$max,
     'p|period=s'  => \$period,
     't|title=s'   => \$title,
+    'g|gnuplot:s' => \&gnuplot,
+    'o|out=s'     => \$outfile,
     'help|?'      => \$help,
     'man'         => \$man,
 );
 
-# Set default value for columns unless defined
-@column=(1,2) unless @column;
+# Grep abscissa and ordinate value
+sub column
+{
+    # Receive option value
+    my $optval = $_[1];
+    # Expect to comma-separated integers
+    if ($optval =~ m/^(\d+),(\d+)$/)
+    {
+       @column = ($1,$2);
+    }
+    else
+    {
+       warn "Failed to read column option value '$optval'";
+    }
+}
+
+# Identify gnuplot executable if option value is not defined, i.e. empty
+sub gnuplot
+{
+    # Receive option value
+    my $optval = $_[1];
+    # Check for empty value
+    if ($optval eq '')
+    {
+        # Trying to auto-detect gnuplot executable
+        my $cmd = '/usr/bin/sh -c "command -v gnuplot"';
+        my ($stdout,$stderr,$exit) = capture { system($cmd) };
+        if ($stderr)
+        {
+            warn "Failed to auto-detect gnuplot: $stderr";
+            $optval = undef;
+        }
+        else
+        {
+            chomp($stdout);
+            $optval = $stdout;
+        }
+    }
+    # Check if option value is a executable file
+    unless (-f $optval and -x $optval)
+    {
+        warn "Failed to find or execute gnuplot at $optval";
+        $optval = undef;
+    }
+    # Set gnuplot variable
+    $gnuplot = $optval;
+}
 
 # Check max value
 die "Invalid max value: $max" unless $max >= 0;
@@ -215,10 +265,12 @@ if (defined $period)
     {
         # Yearly
         $tagfmt  = '%Y';
-        $timefmt = '%j';                            # Day of the Year, i.e. 1-365
+        $timefmt = '%j';
         unless (defined $xformat)
         {
-            if ($dtmax-$dtmin > ONE_YEAR / 2)
+            # For small data sets or data sets including New Year
+            if ($dtmax-$dtmin > ONE_YEAR / 2 or
+                Time::Piece->strptime($dtmax,"%s")->yday < Time::Piece->strptime($dtmin,"%s")->yday)
             {
                 # Abbreviated Name of the Month
                 $xformat = '%b';
@@ -229,15 +281,15 @@ if (defined $period)
                 $xformat = '%b %d';
             }
         }
-        $xlabel  = '';
+        $xlabel  = undef;
         $xdata   = 1;
     }
     elsif ($period =~ m/^m(?:onth)?s?$/i)
     {
         # Monthly
         $tagfmt  = '%b %y';
-        $timefmt = '%d';                            # Day of the Month, i.e. 1-31
-        $xformat = '%d' unless defined $xformat;    # Day of the Month, 1-31
+        $timefmt = '%d';
+        $xformat = '%d' unless defined $xformat;
         $xlabel  = 'Day of the Month';
         $xdata   = 1;
     }
@@ -410,16 +462,37 @@ else
     }
 }
 
+# Declare filehandle for output
+my $fh;
+
+if (defined $outfile)
+{
+    # Stop here if output file already exists
+    die "Outfile $outfile already exists" if -f $outfile;
+
+    # Create user-specified output file and return filehandle
+    open $fh, '>', $outfile or die "Failed to create $outfile: $!";
+}
+elsif (defined $gnuplot)
+{
+    # Create temporary gnuplot file and return filehandle
+    $fh = File::Temp->new(template => 'usageinfo.XXXXXX',
+                          tmpdir   => 1,
+                          suffix   => '.plt' );
+}
+else
+{
+    # Set filehandle to STDOUT
+    $fh = \*STDOUT;
+}
 
 # Set default title
 $title = sprintf("%s",$file) unless defined $title;
 
 # Print Gnuplot header
-print <<GNUPLOT_HEAD;
-set terminal qt enhanced persist size 1024,576 font ",12"
+print $fh <<GNUPLOT_HEAD;
+set terminal qt enhanced font ",14"
 set title "$title"
-set xlabel "$xlabel"
-set format x "$xformat"
 set grid
 unset colorbox
 GNUPLOT_HEAD
@@ -427,50 +500,62 @@ GNUPLOT_HEAD
 # Print week days
 if (defined $period and $period =~ m/^w/i)
 {
-    print "set xtics ( \"Sun\" 0, \"Mon\" 1, \"Tue\" 2, \"Wed\" 3, \"Thu\" 4, \"Fri\" 5, \"Sat\" 6)\n";
+    print $fh "set xtics ( \"Sun\" 0, \"Mon\" 1, \"Tue\" 2, \"Wed\" 3, \"Thu\" 4, \"Fri\" 5, \"Sat\" 6)\n";
+}
+
+# Apply format specifier to abscissa axis if defined
+if (defined $xformat)
+{
+    printf $fh "set format x \"%s\"\n", $xformat,
 }
 
 # Apply format specifier to ordinate axis if defined
 if (defined $yformat)
 {
-    printf "set format y \"%s\"\n", $yformat;
+    printf $fh "set format y \"%s\"\n", $yformat;
 }
 
 # Apply range specifier to ordinate axis if defined
 if (defined $yrange)
 {
-    printf "set yrange [%s]\n", $yrange;
+    printf $fh "set yrange [%s]\n", $yrange;
+}
+
+# Apply label to abscissa axis if defined
+if (defined $xlabel)
+{
+    printf $fh "set xlabel \"%s\"\n", $xlabel;
 }
 
 # Apply label to ordinate axis if defined
 if (defined $ylabel)
 {
-    printf "set ylabel \"%s\"\n", $ylabel;
+    printf $fh "set ylabel \"%s\"\n", $ylabel;
 }
 
 # Enable key if periods are enabled
 if (defined $period)
 {
     #
-    printf "set key outside right top vertical\n";
+    printf $fh "set key outside right top vertical\n";
 }
 else
 {
-    printf "unset key\n";
+    printf $fh "unset key\n";
 }
 
 # Enable RGB mode if specific color is defined
 if (defined $color)
 {
-    printf "set palette mode RGB\n";
-    printf "set palette defined (0 \"%s\", 1 \"gray90\")\n", $color;
+    printf $fh "set palette mode RGB\n";
+    printf $fh "set palette defined (0 \"%s\", 1 \"gray90\")\n", $color;
 }
 
 # Enable time mode for abscissa axis
 if ($xdata)
 {
-    print "set xdata time\n";
-    print "set timefmt \"$timefmt\"\n";
+    print $fh "set xdata time\n";
+    print $fh "set timefmt \"$timefmt\"\n";
 }
 
 # Sort datasets according to key
@@ -483,18 +568,18 @@ splice @set, 0, $#set-$max if $#set > $max;
 push @set, undef while $#set < $max;
 
 # Initiate plot command
-print "plot ";
+print $fh "plot ";
 
 # Add lines
 for my $i (0 .. $max)
 {
     next unless defined $set[$i];
-    printf "'-' u 1:2 t '%s' w linespoints lc palette frac %.3f lw 2", $set[$i], ($max == 0) ? 0 : 1-$i/$max;
-    printf ", \\\n     " if $i < $max;
+    printf $fh "'-' u 1:2 t '%s' w linespoints lc palette frac %.3f lw 2", $set[$i], ($max == 0) ? 0 : 1-$i/$max;
+    printf $fh ", \\\n     " if $i < $max;
 }
 
 # Finish plot command
-print "\n";
+print $fh "\n";
 
 # Add curve data inline
 for my $i (0 .. $max)
@@ -505,9 +590,31 @@ for my $i (0 .. $max)
     {
         my $dt = strftime($timefmt,localtime($unixtime));
         my $yfmt = (defined $yformat) ? $yformat : '%s';
-        printf "%s " . $yfmt . "\n", $dt, $hashref->{$unixtime}{value};
+        printf $fh "%s " . $yfmt . "\n", $dt, $hashref->{$unixtime}{value};
     }
-    print "e\n";
+    print $fh "e\n";
+}
+
+# Close user-defined output file
+if (defined $outfile)
+{
+    close $fh or die "Failed to close $outfile: $!";
+}
+
+# Start gnuplot on output file
+if (defined $gnuplot)
+{
+    # Set filename of output as input parameter for gnuplot
+    my $arg = defined $outfile ? $outfile : $fh->filename;
+
+    # Invoke gnuplot
+    my ($stdout,$stderr,$exit) = capture { system( $gnuplot, '--persist', $arg ) };
+
+    # Print warnings issued by gnuplot if any
+    warn "Warning issued by gnuplot: $stderr" if $stderr;
+
+    # Return non-zero exit codes
+    die "Failed to invoke gnuplot (exit code $exit)" unless $exit == 0;
 }
 
 
@@ -521,7 +628,7 @@ usageinfo - Convert usageinfo data to gnuplot data
 
 =head1 SYNOPSIS
 
-B<usageinfo> [I<options>] | B<gnuplot>
+B<usageinfo> [I<options>] I<file>
 
 
 =head1 OPTIONS
@@ -556,7 +663,7 @@ Sets sheet label for spreadsheet files (default: 1).
 
 =item B<--column>=I<col>,I<col>
 
-Sets numbers of abcissa column (default: 1) and ordinate column (default: 2).
+Sets numbers of abcissa column (default: 1) and ordinate column (default: 2) separated by comma.
 
 =item B<--dtfmt>=I<datespec>
 
@@ -570,6 +677,10 @@ Set date specifier according to B<strftime>.
 Customize how data is output.
 
 =over 4
+
+=item B<-o>, B<--out>=I<string>
+
+Writes output to specified output file instead of STDOUT.
 
 =item B<-t>, B<--title>=I<string>
 
@@ -602,6 +713,10 @@ Show first derivative of ordinate values with respect to I<ratespec>.  Available
 =item B<-s>, B<--scale>=I<num>
 
 Scales ordinate values by factor I<num> (default: 1).
+
+=item B<-g>, B<--gnuplot>[=I<command>]
+
+Runs B<gnuplot> on output and raises X window.  Default terminal is C<qt>.  Submitting the command is optional.  If no command is defined, the system tries to auto-detect the command for running B<gnuplot>.
 
 =back
 

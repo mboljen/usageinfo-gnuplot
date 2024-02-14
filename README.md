@@ -58,9 +58,9 @@ Customize how data is read in.
   
   Sets sheet number for spreadsheet files (default: `1`).
 
-- **--column**=_abscol_ _ordcol_
+- **--column**=_abscol_,_ordcol_
   
-  Sets numbers of abcissa column (default: `1`) and ordinate column (default: `2`).
+  Sets numbers of abcissa column (default: `1`) and ordinate column (default: `2`) separated by comma.
 
 - **--dtfmt**=_datespec_
   
@@ -69,6 +69,10 @@ Customize how data is read in.
 #### Writing data
 
 Customize how data is output.
+
+- **-o**, **--out**=_filename_
+  
+  Writes output to specified output file instead of STDOUT.
 
 - **-t**, **--title**=_string_
   
@@ -98,9 +102,13 @@ Customize how data is output.
   
   Show first derivative of ordinate values with respect to _ratespec_. Available options are: `year`, `month`, `week`, `day`, `hour`, `min`, `sec`.  Alternatively, a custom period can be specified in seconds.
 
-- **-s**, **-scale**=_num_
+- **-s**, **--scale**=_num_
   
   Scales ordinate values by factor _num_ (default: `1`).
+
+- **-g**, **--gnuplot**[=_value_]
+  
+  Runs B<gnuplot> on output and raises X window.  Default terminal is C<qt>.  Submitting the command is optional.  If no command is defined, the system tries to auto-detect the command for running B<gnuplot>.
 
 #### Splitting data
 
