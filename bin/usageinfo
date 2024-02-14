@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Wed 2024-02-14 19:07:58 CET (boljen)
+# Last modified:   Do 2024-02-15 00:23:56 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -41,6 +41,7 @@ my @column = (1,2);
 my $sep;
 my $gnuplot;
 my $outfile;
+my $term;
 my $reset = 0;
 my $man   = 0;
 my $help  = 0;
@@ -59,6 +60,7 @@ GetOptions(
     'yformat=s'   => \$yformat,
     'ylabel=s'    => \$ylabel,
     'yrange=s'    => \$yrange,
+    'term=s'      => \$term,
     'm|max=i'     => \$max,
     'p|period=s'  => \$period,
     't|title=s'   => \$title,
@@ -486,16 +488,23 @@ else
     $fh = \*STDOUT;
 }
 
-# Set default title
-$title = sprintf("%s",$file) unless defined $title;
+# Set terminal if --gnuplot switch is enabled and terminal is undefined
+$term = 'qt enhanced' if $gnuplot and not defined $term;
 
-# Print Gnuplot header
-print $fh <<GNUPLOT_HEAD;
-set terminal qt enhanced font ",14"
-set title "$title"
-set grid
-unset colorbox
-GNUPLOT_HEAD
+# Set terminal
+if (defined $term)
+{
+    printf $fh "set terminal %s\n", $term;
+}
+
+# Set default title if defined
+if (defined $title)
+{
+    printf $fh "set title \"%s\"\n", $title;
+}
+
+print $fh "set grid\n";
+print $fh "unset colorbox\n";
 
 # Print week days
 if (defined $period and $period =~ m/^w/i)
@@ -589,8 +598,7 @@ for my $i (0 .. $max)
     for my $unixtime (sort { $a cmp $b } keys %{$hashref})
     {
         my $dt = strftime($timefmt,localtime($unixtime));
-        my $yfmt = (defined $yformat) ? $yformat : '%s';
-        printf $fh "%s " . $yfmt . "\n", $dt, $hashref->{$unixtime}{value};
+        printf $fh "%s\t%s\n", $dt, $hashref->{$unixtime}{value};
     }
     print $fh "e\n";
 }
@@ -685,6 +693,10 @@ Writes output to specified output file instead of STDOUT.
 =item B<-t>, B<--title>=I<string>
 
 Uses specific Gnuplot title.
+
+=item B<--term>=I<value>
+
+Uses specific Gnuplot terminal (default: undef).
 
 =item B<--ylabel>=I<value>
 

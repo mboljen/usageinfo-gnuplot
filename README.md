@@ -106,9 +106,13 @@ Customize how data is output.
   
   Scales ordinate values by factor _num_ (default: `1`).
 
+- **--term**=_value_
+  
+  Uses sepecific Gnuplot terminal and option (default: `undef`).
+
 - **-g**, **--gnuplot**=[_command_]
   
-  Runs **gnuplot** on output and raises X window.  Default terminal is `qt`.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of **gnuplot**.
+  Runs **gnuplot** on output and raises X window.  Sets terminal to `qt`.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of **gnuplot**.
 
 #### Splitting data
 
