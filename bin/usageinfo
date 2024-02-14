@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Wed 2024-02-14 18:05:50 CET (boljen)
+# Last modified:   Wed 2024-02-14 19:07:58 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -663,7 +663,7 @@ Sets sheet label for spreadsheet files (default: 1).
 
 =item B<--column>=I<col>,I<col>
 
-Sets numbers of abcissa column (default: 1) and ordinate column (default: 2) separated by comma.
+Sets numbers of abcissa column (default: 1) and ordinate column (default: 2) separated by a comma.
 
 =item B<--dtfmt>=I<datespec>
 
@@ -714,9 +714,9 @@ Show first derivative of ordinate values with respect to I<ratespec>.  Available
 
 Scales ordinate values by factor I<num> (default: 1).
 
-=item B<-g>, B<--gnuplot>[=I<command>]
+=item B<-g>, B<--gnuplot>=[I<command>]
 
-Runs B<gnuplot> on output and raises X window.  Default terminal is C<qt>.  Submitting the command is optional.  If no command is defined, the system tries to auto-detect the command for running B<gnuplot>.
+Runs B<gnuplot> on output and raises X window.  Default terminal is C<qt>.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of B<gnuplot>.
 
 =back
 

@@ -60,7 +60,7 @@ Customize how data is read in.
 
 - **--column**=_abscol_,_ordcol_
   
-  Sets numbers of abcissa column (default: `1`) and ordinate column (default: `2`) separated by comma.
+  Sets numbers of abcissa column (default: `1`) and ordinate column (default: `2`) separated by a comma.
 
 - **--dtfmt**=_datespec_
   
@@ -106,9 +106,9 @@ Customize how data is output.
   
   Scales ordinate values by factor _num_ (default: `1`).
 
-- **-g**, **--gnuplot**[=_value_]
+- **-g**, **--gnuplot**=[_command_]
   
-  Runs B<gnuplot> on output and raises X window.  Default terminal is C<qt>.  Submitting the command is optional.  If no command is defined, the system tries to auto-detect the command for running B<gnuplot>.
+  Runs **gnuplot** on output and raises X window.  Default terminal is `qt`.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of **gnuplot**.
 
 #### Splitting data
 
