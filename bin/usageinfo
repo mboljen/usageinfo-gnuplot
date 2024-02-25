@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Do 2024-02-15 00:23:56 CET (boljen)
+# Last modified:   Sa 2024-02-24 08:20:28 CET (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -42,6 +42,7 @@ my $sep;
 my $gnuplot;
 my $outfile;
 my $term;
+my $style;
 my $reset = 0;
 my $man   = 0;
 my $help  = 0;
@@ -61,6 +62,7 @@ GetOptions(
     'ylabel=s'    => \$ylabel,
     'yrange=s'    => \$yrange,
     'term=s'      => \$term,
+    'style=s'     => \$style,
     'm|max=i'     => \$max,
     'p|period=s'  => \$period,
     't|title=s'   => \$title,
@@ -213,6 +215,8 @@ for (my $i = 0; $i <= $#dt; $i++)
     # Add datapoint to data hash
     $data->{$unixtime} = { value => $y[$i] };
 }
+
+$style = (scalar keys %{$data} > 50) ? 'lines' : 'linespoints' unless defined $style;
 
 # Create spline
 my $spline = Math::Spline->new(\@dt,\@y);
@@ -583,7 +587,7 @@ print $fh "plot ";
 for my $i (0 .. $max)
 {
     next unless defined $set[$i];
-    printf $fh "'-' u 1:2 t '%s' w linespoints lc palette frac %.3f lw 2", $set[$i], ($max == 0) ? 0 : 1-$i/$max;
+    printf $fh "'-' u 1:2 t '%s' w %s lc palette frac %.3f lw 3", $set[$i], $style, ($max == 0) ? 0 : 1-$i/$max;
     printf $fh ", \\\n     " if $i < $max;
 }
 
@@ -725,6 +729,10 @@ Show first derivative of ordinate values with respect to I<ratespec>.  Available
 =item B<-s>, B<--scale>=I<num>
 
 Scales ordinate values by factor I<num> (default: 1).
+
+=item B<--style>=I<value>
+
+Uses specific Gnuplot linestyle, e.g. C<lines>, C<linespoints>.
 
 =item B<-g>, B<--gnuplot>=[I<command>]
 
