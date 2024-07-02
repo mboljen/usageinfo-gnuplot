@@ -1,6 +1,6 @@
 # usageinfo-gnuplot
 
-Convert time-dependent tabular 2D data to executable gnuplot scripts.
+Convert time-dependent tabular 2D data to executable gnuplot scripts
 
 
 ## Synopsis
@@ -12,100 +12,100 @@ $ usageinfo [OPTION]... INFILE
 
 ## Options
 
-+ **--man**
++ `--man`
 
-  Prints the manual page and exits.
+  Print the manual page and exit.
 
-+ **--help**
++ `--help`
 
-  Prints a brief help message and exits.
+  Print a brief help message and exit.
 
 
 ### Reading data
 
 Customize how data is read in.
 
-+ **--sep**=_value_
++ `--sep` = _value_
 
-  Sets separation character for plain text files.
+  Set separation character for plain text files.
 
-+ **--sheet**=_value_
++ `--sheet` = _value_
 
-  Sets sheet number for spreadsheet files (default: `1`).
+  Set sheet number for spreadsheet files (default: `1`).
 
-+ **--column**=_abscol_,_ordcol_
++ `--column` = _abscol_,_ordcol_
 
-  Sets numbers of abcissa column (default: `1`) and ordinate column (default: `2`) separated by a comma.
+  Set numbers of abcissa column (default: `1`) and ordinate column (default: `2`) separated by a comma.
 
-+ **--dtfmt**=_datespec_
++ `--dtfmt` = _datespec_
 
-  Sets date specifier accordint to **strftime**.
+  Set date specifier accordint to **strftime**.
 
 
 ### Writing data
 
 Customize how data is output.
 
-+ **-o**, **--out**=_filename_
++ `-o`, `--out` = _filename_
 
-  Writes output to specified output file instead of STDOUT.
+  Write output to specified output file instead of STDOUT.
 
-+ **-t**, **--title**=_string_
++ `-t`, `--title` = _string_
 
-  Uses specific Gnuplot title.
+  Use specific Gnuplot title.
 
-+ **--ylabel**=_value_
++ `--ylabel` = _value_
 
-  Uses specific Gnuplot label for ordinate axis (default: `undef`).
+  Use specific Gnuplot label for ordinate axis (default: `undef`).
 
-+ **--xformat**=_value_
++ `--xformat` = _value_
+
+  Use specific Gnuplot label for ordinate tics (default: `undef`).
+
++ `--yformat` = _value_
 
   Uses specific Gnuplot label for ordinate tics (default: `undef`).
 
-+ **--yformat**=_value_
++ `--yrange` = _value_
 
-  Uses specific Gnuplot label for ordinate tics (default: `undef`).
+  Use specific Gnuplot range for ordinate axis (default: `undef`).
 
-+ **--yrange**=_value_
++ `-c`, `--color` = _colorspec_
 
-  Uses specific Gnuplot range for ordinate axis (default: `undef`).
+  Use specific Gnuplot color.
 
-+ **-c**, **--color**=_colorspec_
-
-  Uses specific Gnuplot color.
-
-+ **-r**, **--rate**=_ratespec_
++ `-r`, `--rate` = _ratespec_
 
   Show first derivative of ordinate values with respect to _ratespec_. Available options are: `year`, `month`, `week`, `day`, `hour`, `min`, `sec`.  Alternatively, a custom period can be specified in seconds.
 
-+ **-s**, **--scale**=_num_
++ `-s`, `--scale` = _num_
 
-  Scales ordinate values by factor _num_ (default: `1`).
+  Scale ordinate values by factor _num_ (default: `1`).
 
-+ **--term**=_value_
++ `--term` = _value_
 
-  Uses sepecific Gnuplot terminal and option (default: `undef`).
+  Use sepecific Gnuplot terminal and option (default: `undef`).
 
-+ **-g**, **--gnuplot**=[_command_]
++ `-g`, `--gnuplot` [= _command_ ]
 
-  Runs **gnuplot** on output and raises X window.  Sets terminal to `qt`.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of **gnuplot**.
+  Run **gnuplot** on output and raise X window.  Set terminal to `qt`.  Submitting the command is optional.  If no command is defined, the system will try to auto-detect the location of **gnuplot**.
 
 
 ### Splitting data
 
 Customize how data is split.
 
-* **-p**, **--period**=_string_
+* `-p`, `--period` = _string_
 
-  Splits data with respect to periods into datasets. Avaliable options are `year`, `month`, `week`, `day`, `hour` (default: `year`).
+  Split data with respect to periods into datasets. Avaliable options are `year`, `month`, `week`, `day`, `hour` (default: `year`).
 
-* **-m**, **--max**=_num_
+* `-m`, `--max` = _num_
 
-  Limits output to latest `num` datasets.  Set to zero to include all available datasets (default: `0`).
+  Limit output to latest `num` datasets.  Set to zero to include all available datasets (default: `0`).
 
-* **--reset**
+* `--reset`
 
-  Resets ordinate values to zero at the start of each dataset.
+  Reset ordinate values to zero at the start of each dataset.
 
 
 ## Requirements

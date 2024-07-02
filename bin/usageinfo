@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Sa 2024-02-24 08:20:28 CET (boljen)
+# Last modified:   Di 2024-07-02 19:35:59 CEST (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -643,6 +643,11 @@ usageinfo - Convert usageinfo data to gnuplot data
 B<usageinfo> [I<options>] I<file>
 
 
+=head1 DESCRIPTION
+
+Processes time-dependent data and maps function values to fixed periods of time.
+
+
 =head1 OPTIONS
 
 =over 4
@@ -759,11 +764,6 @@ Limits output to latest I<num> datasets only.  Set to C<0> to include all datase
 Resets data to zero at the start of each period.
 
 =back
-
-
-=head1 DESCRIPTION
-
-Processes time-dependent data and maps function values to fixed periods of time.
 
 
 =head1 HISTORY
