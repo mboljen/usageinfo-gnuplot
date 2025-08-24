@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   Di 2024-07-02 19:35:59 CEST (boljen)
+# Last modified:   So 2025-08-24 23:48:15 CEST (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -148,7 +148,7 @@ die "Ordinate column tag exceeds available columns" if $column[1] > $sheet->maxc
 
 # Fetch timestamps and function values
 my @dt = $sheet->column($column[0]);
-my @y  = $sheet->column($column[1]);
+my @y  = $sheet->cellcolumn($column[1]);
 
 # Exit if array sizes do not match
 die "Array size mismatch of abscissa and ordinate values" if $#dt != $#y;
@@ -168,6 +168,8 @@ for (my $i = 0; $i <= $#dt; $i++)
 {
     # Initialize timestamp
     my $dt;
+
+    printf "[%s][%s]\n", $dt[$i], $y[$i];
 
     # Parse datetime string
     my $err;
