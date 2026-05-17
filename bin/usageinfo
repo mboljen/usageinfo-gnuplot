@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   So 2025-08-24 23:48:15 CEST (boljen)
+# Last modified:   So 2026-05-17 13:16:57 CEST (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -168,8 +168,6 @@ for (my $i = 0; $i <= $#dt; $i++)
 {
     # Initialize timestamp
     my $dt;
-
-    printf "[%s][%s]\n", $dt[$i], $y[$i];
 
     # Parse datetime string
     my $err;
@@ -486,7 +484,7 @@ elsif (defined $gnuplot)
     # Create temporary gnuplot file and return filehandle
     $fh = File::Temp->new(template => 'usageinfo.XXXXXX',
                           tmpdir   => 1,
-                          suffix   => '.plt' );
+                          suffix   => '.gpi' );
 }
 else
 {
@@ -582,6 +580,21 @@ $max = ($max==0) ? $#set : $max-1;
 splice @set, 0, $#set-$max if $#set > $max;
 push @set, undef while $#set < $max;
 
+# Add curve data as datablock
+for my $i (0 .. $max)
+{
+    next unless defined $set[$i];
+    my $hashref = $dataset->{$set[$i]};
+    printf $fh "\n\$block%04d << EOD\n", $i;
+    for my $unixtime (sort { $a cmp $b } keys %{$hashref})
+    {
+        my $dt = strftime($timefmt, localtime($unixtime));
+        printf $fh "%s\t%s\n", $dt, $hashref->{$unixtime}{value};
+    }
+    print $fh "EOD\n";
+}
+
+
 # Initiate plot command
 print $fh "plot ";
 
@@ -589,25 +602,12 @@ print $fh "plot ";
 for my $i (0 .. $max)
 {
     next unless defined $set[$i];
-    printf $fh "'-' u 1:2 t '%s' w %s lc palette frac %.3f lw 3", $set[$i], $style, ($max == 0) ? 0 : 1-$i/$max;
+    printf $fh "\$block%04d u 1:2 t '%s' w %s lc palette frac %.3f lw 3", $i, $set[$i], $style, ($max == 0) ? 0 : 1-$i/$max;
     printf $fh ", \\\n     " if $i < $max;
 }
 
 # Finish plot command
 print $fh "\n";
-
-# Add curve data inline
-for my $i (0 .. $max)
-{
-    next unless defined $set[$i];
-    my $hashref = $dataset->{$set[$i]};
-    for my $unixtime (sort { $a cmp $b } keys %{$hashref})
-    {
-        my $dt = strftime($timefmt,localtime($unixtime));
-        printf $fh "%s\t%s\n", $dt, $hashref->{$unixtime}{value};
-    }
-    print $fh "e\n";
-}
 
 # Close user-defined output file
 if (defined $outfile)
