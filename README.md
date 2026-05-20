@@ -99,6 +99,10 @@ Customize how data is split.
 
   Split data with respect to periods into datasets. Avaliable options are `year`, `month`, `week`, `day`, `hour` (default: `year`).
 
+* `-i`, `--interpolation` = _string_
+
+  Specify interpolation method for period boundaries.  Available options are: C<linear>, C<cspline> (default: cspline).
+
 * `-m`, `--max` = _num_
 
   Limit output to latest `num` datasets.  Set to zero to include all available datasets (default: `0`).

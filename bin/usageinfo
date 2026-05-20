@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Created:         Thu 2023-10-26 14:06:36 CEST (boljen)
-# Last modified:   So 2026-05-17 13:16:57 CEST (boljen)
+# Last modified:   Mi 2026-05-20 09:47:56 CEST (boljen)
 #
 # usageinfo-gnuplot:
 #    Convert usageinfo data to gnuplot data.
@@ -11,11 +11,12 @@ use warnings;
 
 # Include modules
 use Capture::Tiny qw(:all);
+use Data::Dumper;
 use File::Spec::Functions;
 use File::Temp;
 use Getopt::Long;
 use Math::Derivative qw(:all);
-use Math::Spline;
+use Math::Spline qw(binsearch spline);
 use Pod::Usage;
 use POSIX qw(strftime);
 use Regexp::Common;
@@ -43,6 +44,7 @@ my $gnuplot;
 my $outfile;
 my $term;
 my $style;
+my $interpolate = 'cspline';
 my $reset = 0;
 my $man   = 0;
 my $help  = 0;
@@ -66,6 +68,7 @@ GetOptions(
     'm|max=i'     => \$max,
     'p|period=s'  => \$period,
     't|title=s'   => \$title,
+    'i|interpolate=s' => \$interpolate,
     'g|gnuplot:s' => \&gnuplot,
     'o|out=s'     => \$outfile,
     'help|?'      => \$help,
@@ -126,6 +129,10 @@ die "Invalid max value: $max" unless $max >= 0;
 # Check yrange value
 die "Invalid yrange value, expects <num>:<num>, received \"$yrange\""
     if defined $yrange and $yrange !~ m/^(?:$RE{num}{real})?:(?:$RE{num}{real})?$/;
+
+# Check interpolation method
+die "Invalid interpolation method, expects 'linear|cspline', received \"$interpolate\""
+    if $interpolate !~ m/^(?:linear|cspline)$/;
 
 # Show plain old documentation
 pod2usage(1) if $help;
@@ -380,18 +387,54 @@ if (defined $period)
             $dt1 = $dt0 + ONE_DAY - ONE_MINUTE;
         }
 
-        # Create function value by spline interpolation at start point (but do not extrapolate)
+        # Create function value by interpolation at start point (but do not extrapolate)
         if ($dt > $dt0)
         {
             $dt0 = $dt0->epoch;
-            $dataset->{$key}{$dt0} = { value => $spline->evaluate($dt0) } if $dt0 > $dtmin;
+            if ($dt0 > $dtmin)
+            {
+                #
+                if ($interpolate =~ m/^(?:linear)$/)
+                {
+                    # Linear interpolation
+                    my ($x,$y) = ($spline->[0],$spline->[1]);
+                    my $idx = binsearch($x,$dt0);
+                    my $m = ( $y->[$idx+1] - $y->[$idx] ) / ( $x->[$idx+1] - $x->[$idx] );
+                    my $b = $y->[$idx] - $m * $x->[$idx];
+                    #
+                    $dataset->{$key}{$dt0} = { value => $m * $dt0 + $b };
+                }
+                else
+                {
+                    # Cubic spline interpolation (default)
+                    $dataset->{$key}{$dt0} = { value => $spline->evaluate($dt0) };
+                }
+            }
         }
 
-        # Create function value by spline interpolation at end point (but do not extrapolate)
+        # Create function value by interpolation at end point (but do not extrapolate)
         if ($dt < $dt1)
         {
             $dt1 = $dt1->epoch;
-            $dataset->{$key}{$dt1} = { value => $spline->evaluate($dt1) } if $dt1 < $dtmax;
+            if ($dt1 < $dtmax)
+            {
+                #
+                if ($interpolate =~ m/^(?:linear)$/)
+                {
+                    # Linear interpolation
+                    my ($x,$y) = ($spline->[0],$spline->[1]);
+                    my $idx = binsearch($x,$dt0);
+                    my $m = ( $y->[$idx+1] - $y->[$idx] ) / ( $x->[$idx+1] - $x->[$idx] );
+                    my $b = $y->[$idx] - $m * $x->[$idx];
+                    #
+                    $dataset->{$key}{$dt1} = { value => $m * $dt0 + $b };
+                }
+                else
+                {
+                    # Cubic spline interpolation (default)
+                    $dataset->{$key}{$dt1} = { value => $spline->evaluate($dt1) };
+                }
+            }
         }
     }
 
@@ -757,6 +800,10 @@ Customize data splitting.
 
 Splits data with respect to periods.  Available options are: C<year>, C<month>, C<week>, C<day>, C<hour> (default: year).
 
+=item B<-i>, B<--interpolate>=I<string>
+
+Specify interpolation method for period boundaries.  Available options are: C<linear>, C<cspline> (default: cspline).
+
 =item B<-m>, B<--max>=I<num>
 
 Limits output to latest I<num> datasets only.  Set to C<0> to include all datasets (default: 0).
@@ -771,6 +818,7 @@ Resets data to zero at the start of each period.
 =head1 HISTORY
 
  2024-01-03  Original version
+ 2026-05-20  Added linear interpolation option
 
 
 =head1 AUTHOR
